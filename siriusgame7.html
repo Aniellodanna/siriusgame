@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sirius Game - Editor & Gioco</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            width: 80%;
+            margin: auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            font-size: 18px;
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        input, select {
+            width: 90%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .hidden { display: none; }
+        .game-container { margin-top: 20px; }
+        .overlay {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 50px;
+            font-weight: bold;
+            display: none;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .correct { color: green; background: rgba(0, 255, 0, 0.8); }
+        .wrong { color: black; background: yellow; }
+    </style>
+</head>
+<body>
+
+    <h1>Sirius Game 🎮</h1>
+    <button onclick="showEditor()">📝 Apri Editor</button>
+    <button onclick="showGame()">🎮 Gioca</button>
+
+    <div id="editor" class="container hidden">
+        <h2>✍️ Editor di Domande</h2>
+        <input type="text" id="question" placeholder="Inserisci la domanda">
+        <input type="text" id="answer1" placeholder="Risposta 1">
+        <input type="text" id="answer2" placeholder="Risposta 2">
+        <input type="text" id="answer3" placeholder="Risposta 3">
+        <input type="text" id="answer4" placeholder="Risposta 4">
+        <label for="correctAnswer">Scegli la risposta corretta:</label>
+        <select id="correctAnswer">
+            <option value="1">Risposta 1</option>
+            <option value="2">Risposta 2</option>
+            <option value="3">Risposta 3</option>
+            <option value="4">Risposta 4</option>
+        </select>
+        <input type="text" id="caption1" placeholder="Didascalia Risposta 1">
+        <input type="text" id="caption2" placeholder="Didascalia Risposta 2">
+        <input type="text" id="caption3" placeholder="Didascalia Risposta 3">
+        <input type="text" id="caption4" placeholder="Didascalia Risposta 4">
+        <button onclick="saveQuestion()">💾 Salva Domanda</button>
+        <button onclick="saveGame()">💾 Salva Gioco</button>
+        <button onclick="clearQuestions()">🗑 Cancella Tutto</button>
+        <h3>📜 Domande Salvate:</h3>
+        <ul id="questionList"></ul>
+    </div>
+
+    <div id="game" class="container hidden">
+        <h2>🎮 Modalità Gioco</h2>
+        <div id="gameContainer"></div>
+        <button onclick="previousQuestion()">⬅️ Indietro</button>
+        <button onclick="nextQuestion()">➡️ Avanti</button>
+        <button onclick="startGame()">▶️ Inizia</button>
+    </div>
+
+    <div id="overlayMessage" class="overlay"></div>
+
+    <script>
+        let questions = JSON.parse(localStorage.getItem('questions')) || [];
+        let currentQuestionIndex = 0;
+
+        function showEditor() {
+            document.getElementById('editor').style.display = 'block';
+            document.getElementById('game').style.display = 'none';
+            updateQuestionList();
+        }
+
+        function showGame() {
+            document.getElementById('editor').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+        }
+
+        function saveQuestion() {
+            let question = document.getElementById('question').value;
+            let answers = [
+                document.getElementById('answer1').value,
+                document.getElementById('answer2').value,
+                document.getElementById('answer3').value,
+                document.getElementById('answer4').value
+            ];
+            let correct = document.getElementById('correctAnswer').value;
+            let captions = [
+                document.getElementById('caption1').value,
+                document.getElementById('caption2').value,
+                document.getElementById('caption3').value,
+                document.getElementById('caption4').value
+            ];
+
+            if (question && answers.every(ans => ans !== "")) {
+                questions.push({ question, answers, correct, captions });
+                localStorage.setItem('questions', JSON.stringify(questions));
+                updateQuestionList();
+                alert("Domanda salvata!");
+            }
+        }
+
+        function saveGame() {
+            localStorage.setItem('questions', JSON.stringify(questions));
+            alert("Gioco salvato con successo!");
+        }
+
+        function updateQuestionList() {
+            let list = document.getElementById("questionList");
+            list.innerHTML = "";
+            questions.forEach((q, index) => {
+                let li = document.createElement("li");
+                li.textContent = `${index + 1}. ${q.question}`;
+                list.appendChild(li);
+            });
+        }
+
+        function clearQuestions() {
+            questions = [];
+            localStorage.removeItem('questions');
+            updateQuestionList();
+        }
+
+        function startGame() {
+            if (questions.length === 0) {
+                alert("Nessuna domanda disponibile!");
+                return;
+            }
+            currentQuestionIndex = 0;
+            showNextQuestion();
+        }
+
+        function showNextQuestion() {
+            if (currentQuestionIndex >= questions.length) {
+                alert("Hai completato il gioco!");
+                return;
+            }
+
+            let q = questions[currentQuestionIndex];
+            let container = document.getElementById("gameContainer");
+            container.innerHTML = `<h3>${q.question}</h3>`;
+
+            q.answers.forEach((ans, i) => {
+                let btn = document.createElement("button");
+                btn.textContent = ans;
+                btn.onclick = () => checkAnswer(i + 1, q);
+                container.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selected, q) {
+            let overlay = document.getElementById("overlayMessage");
+            if (selected == q.correct) {
+                overlay.textContent = "✅";
+                overlay.className = "overlay correct";
+                currentQuestionIndex++;
+                setTimeout(() => {
+                    overlay.style.display = "none";
+                    showNextQuestion();
+                }, 1000);
+            } else {
+                overlay.textContent = "❌ RITENTA!";
+                overlay.className = "overlay wrong";
+            }
+            overlay.style.display = "block";
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < questions.length - 1) {
+                currentQuestionIndex++;
+                showNextQuestion();
+            }
+        }
+
+        function previousQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                showNextQuestion();
+            }
+        }
+    </script>
+
+</body>
+</html>
